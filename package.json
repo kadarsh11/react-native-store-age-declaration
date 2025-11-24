@@ -1,6 +1,6 @@
 {
   "name": "react-native-store-age-declaration",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "unified API for age-appropriate experiences across platforms",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
@@ -43,7 +43,16 @@
   "keywords": [
     "react-native",
     "ios",
-    "android"
+    "android",
+    "age-verification",
+    "age-gate",
+    "parental-controls",
+    "google-play-age-signals",
+    "coppa",
+    "content-filtering",
+    "family-link",
+    "age-appropriate",
+    "kids-mode"
   ],
   "repository": {
     "type": "git",
