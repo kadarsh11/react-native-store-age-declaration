@@ -9,18 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - `getAndroidPlayAgeRangeStatus()` method for Android age verification
-- Support for Google Play Age Signals API integration
-- TypeScript type definitions for `PlayAgeRangeStatusResult`
+- `requestIOSDeclaredAgeRange()` method for iOS age verification
+- Support for Google Play Age Signals API integration (Android)
+- Support for iOS Declared Age Range API (iOS 18+)
+- TypeScript type definitions for `PlayAgeRangeStatusResult` and `DeclaredAgeRangeResult`
 - Comprehensive JSDoc documentation in TypeScript files
 - Complete API documentation in `API.md`
 - Implementation guide with real-world examples in `IMPLEMENTATION_GUIDE.md`
-- Detailed inline code comments in Kotlin native module
-- Example app demonstrating age gate functionality
+- Detailed inline code comments in Kotlin and Swift native modules
+- Example app demonstrating age gate functionality for both platforms
 - Automatic inclusion of Google Play Age Signals dependency
+- Cross-platform age verification API
 
 ### Changed
-- Updated README with detailed usage examples and best practices
-- Enhanced example app with interactive age status checking
+- Updated README with detailed usage examples for both iOS and Android
+- Enhanced example app with platform-specific age status checking
+- Updated documentation to reflect iOS support
 
 ### Documentation
 - Added complete API reference with method signatures and return types

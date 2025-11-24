@@ -322,19 +322,24 @@ async function getAgeStatus() {
 
 ### 3. **Platform-Specific Code**
 
-Since this is Android-only currently, use platform checks:
+Use platform checks to call the appropriate API:
 
 ```typescript
 import { Platform } from 'react-native';
-import { getAndroidPlayAgeRangeStatus } from 'react-native-store-age-declaration';
+import {
+  getAndroidPlayAgeRangeStatus,
+  requestIOSDeclaredAgeRange,
+} from 'react-native-store-age-declaration';
 
 async function checkAgeStatus() {
   if (Platform.OS === 'android') {
-    return await getAndroidPlayAgeRangeStatus();
-  } else {
-    // iOS fallback or alternative implementation
-    return { installId: null, userStatus: 'UNKNOWN', error: null };
+    const result = await getAndroidPlayAgeRangeStatus();
+    return result.userStatus === 'OVER_AGE';
+  } else if (Platform.OS === 'ios') {
+    const result = await requestIOSDeclaredAgeRange(13, 17, 21);
+    return result.status === 'sharing' && result.lowerBound >= 18;
   }
+  return false;
 }
 ```
 
@@ -392,7 +397,9 @@ if (result.error?.includes('INIT_ERROR')) {
 - App distributed through Google Play Store (for full functionality)
 
 ### iOS
-- Coming soon
+- React Native >= 0.71
+- iOS 18.0+ (for Declared Age Range API)
+- Xcode 16+
 
 ## TypeScript Support
 
@@ -400,7 +407,8 @@ This library is written in TypeScript and includes complete type definitions. Al
 
 ```typescript
 import type { 
-  PlayAgeRangeStatusResult 
+  PlayAgeRangeStatusResult,
+  DeclaredAgeRangeResult,
 } from 'react-native-store-age-declaration';
 ```
 
@@ -413,6 +421,7 @@ import type {
 ## Links & Resources
 
 - [Google Play Age Signals Documentation](https://developer.android.com/guide/playcore/age-signals)
+- [Apple Declared Age Range Documentation](https://developer.apple.com/documentation/declaredagerange)
 - [COPPA Compliance Guide](https://www.ftc.gov/business-guidance/resources/childrens-online-privacy-protection-rule-six-step-compliance-plan-your-business)
 - [React Native Documentation](https://reactnative.dev/)
 
