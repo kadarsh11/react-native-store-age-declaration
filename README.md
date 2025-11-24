@@ -270,11 +270,21 @@ if (result.error) {
 
 ### Common Error Scenarios
 
+#### Android
+
 | Error | Possible Cause | Solution |
 |-------|---------------|----------|
 | `AGE_SIGNALS_INIT_ERROR` | Google Play Services unavailable | Check if device has Google Play Services |
 | Network errors | No internet connection | Retry when connection is restored |
 | `UNKNOWN` status | User hasn't set up Family Link | Use default age-neutral content |
+
+#### iOS
+
+| Error | Possible Cause | Solution |
+|-------|---------------|----------|
+| `IOS_VERSION_ERROR` | iOS version below 18.0 | Check iOS version before calling |
+| `NO_VIEW_CONTROLLER` | Unable to present UI | Ensure app is in foreground |
+| User declined | User chose not to share | Use default age-appropriate content |
 
 ## Best Practices
 
