@@ -107,6 +107,35 @@ class StoreAgeDeclarationModule(reactContext: ReactApplicationContext) :
     }
   }
 
+  /**
+   * iOS-only method for Declared Age Range API.
+   * Returns an error on Android as this API is not available.
+   * 
+   * @param firstThresholdAge First age threshold (unused on Android)
+   * @param secondThresholdAge Second age threshold (unused on Android)
+   * @param thirdThresholdAge Third age threshold (unused on Android)
+   * @param promise React Native Promise to resolve with error
+   */
+  override fun requestIOSDeclaredAgeRange(
+    firstThresholdAge: Double,
+    secondThresholdAge: Double,
+    thirdThresholdAge: Double,
+    promise: Promise
+  ) {
+    // iOS-only method - return error on Android
+    val response = WritableNativeMap()
+    response.putNull("status")
+    response.putNull("parentControls")
+    response.putNull("lowerBound")
+    response.putNull("upperBound")
+    
+    // Reject the promise as this is not supported on Android
+    promise.reject(
+      "PLATFORM_NOT_SUPPORTED",
+      "requestIOSDeclaredAgeRange is only available on iOS. Use getAndroidPlayAgeRangeStatus on Android."
+    )
+  }
+
   companion object {
     const val NAME = "StoreAgeDeclaration"
   }

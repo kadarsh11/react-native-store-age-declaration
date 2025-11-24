@@ -7,9 +7,10 @@ A unified API for implementing age-appropriate experiences across iOS and Androi
 ## Features
 
 - ✅ **Android Play Age Signals** - Access Google Play's Age Range Declaration API
+- ✅ **iOS Declared Age Range** - Access iOS 18+ Declared Age Range API
 - 🔒 **Type-safe** - Full TypeScript support with comprehensive type definitions
 - ⚡ **Promise-based** - Modern async/await API
-- 🎯 **Zero dependencies** - Lightweight with no external dependencies
+- 🎯 **Cross-platform** - Unified API for both iOS and Android
 - 📱 **React Native** - Built on React Native's Turbo Module architecture
 
 ## Installation
@@ -36,7 +37,13 @@ The library automatically includes the Google Play Age Signals dependency. No ad
 
 #### iOS
 
-iOS support coming soon.
+The library automatically includes iOS Declared Age Range support. No additional setup required.
+
+**Minimum Requirements:**
+- iOS 18.0+ (for Declared Age Range API)
+- Xcode 16+
+
+**Note:** The iOS Declared Age Range API is available starting with iOS 18. On older iOS versions, the method will return an error indicating the version requirement.
 
 ## API Reference
 
@@ -154,6 +161,92 @@ async function loadContent() {
     // Load age-appropriate content only
     loadKidFriendlyGames();
   }
+}
+```
+
+### `requestIOSDeclaredAgeRange()`
+
+Requests age range declaration from iOS Declared Age Range API. This method prompts the user to share their age range information using iOS 18+'s system dialog.
+
+**Platform:** iOS 18+ only
+
+**Parameters:**
+- `firstThresholdAge` (number): First age threshold (e.g., 13)
+- `secondThresholdAge` (number): Second age threshold (e.g., 17)
+- `thirdThresholdAge` (number): Third age threshold (e.g., 21)
+
+**Returns:** `Promise<DeclaredAgeRangeResult>`
+
+#### Return Type
+
+```typescript
+interface DeclaredAgeRangeResult {
+  status: string | null;         // 'sharing', 'declined', or specific age range
+  parentControls: string | null;  // Parental control status
+  lowerBound: number | null;      // Lower bound of age range
+  upperBound: number | null;      // Upper bound of age range
+}
+```
+
+#### Status Values
+
+| Status | Description |
+|--------|-------------|
+| `sharing` | User agreed to share age information |
+| `declined` | User declined to share age information |
+
+#### Example Usage
+
+##### Basic Usage
+
+```typescript
+import { requestIOSDeclaredAgeRange } from 'react-native-store-age-declaration';
+
+async function checkIOSAge() {
+  try {
+    // Request age with thresholds: 13, 17, 21
+    const result = await requestIOSDeclaredAgeRange(13, 17, 21);
+    
+    if (result.status === 'sharing') {
+      console.log('Age range:', result.lowerBound, '-', result.upperBound);
+      console.log('Parental controls:', result.parentControls);
+      
+      // Check if user is over 17
+      if (result.lowerBound && result.lowerBound >= 17) {
+        showAllContent();
+      } else {
+        showAgeAppropriateContent();
+      }
+    } else if (result.status === 'declined') {
+      console.log('User declined to share age');
+      showDefaultContent();
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+```
+
+##### Cross-Platform Example
+
+```typescript
+import { Platform } from 'react-native';
+import {
+  getAndroidPlayAgeRangeStatus,
+  requestIOSDeclaredAgeRange,
+} from 'react-native-store-age-declaration';
+
+async function checkAge() {
+  if (Platform.OS === 'android') {
+    const result = await getAndroidPlayAgeRangeStatus();
+    return result.userStatus === 'OVER_AGE';
+  } else if (Platform.OS === 'ios') {
+    const result = await requestIOSDeclaredAgeRange(13, 17, 21);
+    return result.status === 'sharing' && 
+           result.lowerBound !== null && 
+           result.lowerBound >= 18;
+  }
+  return false;
 }
 ```
 

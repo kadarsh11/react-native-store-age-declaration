@@ -1,30 +1,60 @@
 import { useState } from 'react';
-import { Text, View, StyleSheet, Button, ActivityIndicator } from 'react-native';
+import {
+  Text,
+  View,
+  StyleSheet,
+  Button,
+  ActivityIndicator,
+  Platform,
+} from 'react-native';
 import {
   multiply,
   getAndroidPlayAgeRangeStatus,
+  requestIOSDeclaredAgeRange,
   type PlayAgeRangeStatusResult,
+  type DeclaredAgeRangeResult,
 } from 'react-native-store-age-declaration';
 
 const result = multiply(3, 7);
 
 export default function App() {
-  const [ageStatus, setAgeStatus] = useState<PlayAgeRangeStatusResult | null>(
+  const [androidStatus, setAndroidStatus] =
+    useState<PlayAgeRangeStatusResult | null>(null);
+  const [iosStatus, setIosStatus] = useState<DeclaredAgeRangeResult | null>(
     null
   );
   const [loading, setLoading] = useState(false);
 
-  const checkAgeStatus = async () => {
+  const checkAndroidAgeStatus = async () => {
     setLoading(true);
     try {
       const status = await getAndroidPlayAgeRangeStatus();
-      setAgeStatus(status);
+      setAndroidStatus(status);
     } catch (error) {
-      console.error('Error checking age status:', error);
-      setAgeStatus({
+      console.error('Error checking Android age status:', error);
+      setAndroidStatus({
         installId: null,
         userStatus: null,
         error: String(error),
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkIOSAgeStatus = async () => {
+    setLoading(true);
+    try {
+      // Define age thresholds: 13, 17, 21
+      const status = await requestIOSDeclaredAgeRange(13, 17, 21);
+      setIosStatus(status);
+    } catch (error) {
+      console.error('Error checking iOS age status:', error);
+      setIosStatus({
+        status: 'error',
+        parentControls: null,
+        lowerBound: null,
+        upperBound: null,
       });
     } finally {
       setLoading(false);
@@ -35,34 +65,72 @@ export default function App() {
     <View style={styles.container}>
       <Text style={styles.title}>Store Age Declaration Example</Text>
       <Text style={styles.result}>Multiply Result: {result}</Text>
+      <Text style={styles.platform}>Platform: {Platform.OS}</Text>
 
-      <View style={styles.section}>
-        <Button
-          title="Check Age Range Status"
-          onPress={checkAgeStatus}
-          disabled={loading}
-        />
+      {Platform.OS === 'android' ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Android Age Signals</Text>
+          <Button
+            title="Check Android Age Status"
+            onPress={checkAndroidAgeStatus}
+            disabled={loading}
+          />
 
-        {loading && <ActivityIndicator style={styles.loader} />}
+          {loading && <ActivityIndicator style={styles.loader} />}
 
-        {ageStatus && (
-          <View style={styles.statusContainer}>
-            <Text style={styles.statusTitle}>Age Range Status:</Text>
-            {ageStatus.error ? (
-              <Text style={styles.error}>Error: {ageStatus.error}</Text>
-            ) : (
-              <>
-                <Text style={styles.statusText}>
-                  Install ID: {ageStatus.installId || 'N/A'}
-                </Text>
-                <Text style={styles.statusText}>
-                  User Status: {ageStatus.userStatus || 'UNKNOWN'}
-                </Text>
-              </>
-            )}
-          </View>
-        )}
-      </View>
+          {androidStatus && (
+            <View style={styles.statusContainer}>
+              <Text style={styles.statusTitle}>Age Range Status:</Text>
+              {androidStatus.error ? (
+                <Text style={styles.error}>Error: {androidStatus.error}</Text>
+              ) : (
+                <>
+                  <Text style={styles.statusText}>
+                    Install ID: {androidStatus.installId || 'N/A'}
+                  </Text>
+                  <Text style={styles.statusText}>
+                    User Status: {androidStatus.userStatus || 'UNKNOWN'}
+                  </Text>
+                </>
+              )}
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>iOS Declared Age Range</Text>
+          <Button
+            title="Request iOS Age Declaration"
+            onPress={checkIOSAgeStatus}
+            disabled={loading}
+          />
+
+          {loading && <ActivityIndicator style={styles.loader} />}
+
+          {iosStatus && (
+            <View style={styles.statusContainer}>
+              <Text style={styles.statusTitle}>Age Declaration:</Text>
+              <Text style={styles.statusText}>
+                Status: {iosStatus.status || 'N/A'}
+              </Text>
+              {iosStatus.status === 'sharing' && (
+                <>
+                  <Text style={styles.statusText}>
+                    Age Range: {iosStatus.lowerBound || '?'} -{' '}
+                    {iosStatus.upperBound || '?'}
+                  </Text>
+                  <Text style={styles.statusText}>
+                    Parental Controls: {iosStatus.parentControls || 'None'}
+                  </Text>
+                </>
+              )}
+              {iosStatus.status === 'declined' && (
+                <Text style={styles.warning}>User declined to share age</Text>
+              )}
+            </View>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -77,15 +145,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 10,
   },
   result: {
     fontSize: 16,
+    marginBottom: 10,
+  },
+  platform: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 30,
   },
   section: {
     width: '100%',
     alignItems: 'center',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 15,
   },
   loader: {
     marginTop: 20,
@@ -109,5 +187,10 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 14,
     color: 'red',
+  },
+  warning: {
+    fontSize: 14,
+    color: 'orange',
+    marginTop: 5,
   },
 });

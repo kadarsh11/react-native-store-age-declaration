@@ -31,6 +31,38 @@ export interface PlayAgeRangeStatusResult {
   error: string | null;
 }
 
+/**
+ * Result object returned by requestIOSDeclaredAgeRange()
+ * Contains age range declaration from iOS Declared Age Range API
+ */
+export interface DeclaredAgeRangeResult {
+  /**
+   * Status of the age range request.
+   * - 'sharing': User agreed to share age information
+   * - 'declined': User declined to share age information
+   * - Specific age range strings for defined ranges
+   */
+  status: string | null;
+
+  /**
+   * Active parental controls status.
+   * String representation of parental control state.
+   */
+  parentControls: string | null;
+
+  /**
+   * Lower bound of the declared age range.
+   * null if not available or user declined.
+   */
+  lowerBound: number | null;
+
+  /**
+   * Upper bound of the declared age range.
+   * null if not available or user declined.
+   */
+  upperBound: number | null;
+}
+
 export interface Spec extends TurboModule {
   multiply(a: number, b: number): number;
 
@@ -58,6 +90,36 @@ export interface Spec extends TurboModule {
    * ```
    */
   getAndroidPlayAgeRangeStatus(): Promise<PlayAgeRangeStatusResult>;
+
+  /**
+   * Requests age range declaration from iOS Declared Age Range API.
+   * 
+   * This method prompts the user (if necessary) to share their age range information
+   * using iOS 18+'s Declared Age Range API. The user can choose to share or decline.
+   * 
+   * @platform iOS 18+
+   * @param firstThresholdAge First age threshold (e.g., 13)
+   * @param secondThresholdAge Second age threshold (e.g., 17)
+   * @param thirdThresholdAge Third age threshold (e.g., 21)
+   * @returns Promise that resolves with declared age range information
+   * 
+   * @example
+   * ```typescript
+   * const result = await requestIOSDeclaredAgeRange(13, 17, 21);
+   * 
+   * if (result.status === 'sharing') {
+   *   console.log('Age range:', result.lowerBound, '-', result.upperBound);
+   *   console.log('Parental controls:', result.parentControls);
+   * } else if (result.status === 'declined') {
+   *   console.log('User declined to share age');
+   * }
+   * ```
+   */
+  requestIOSDeclaredAgeRange(
+    firstThresholdAge: number,
+    secondThresholdAge: number,
+    thirdThresholdAge: number
+  ): Promise<DeclaredAgeRangeResult>;
 }
 
 export default TurboModuleRegistry.getEnforcing<Spec>('StoreAgeDeclaration');
