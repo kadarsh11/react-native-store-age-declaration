@@ -29,13 +29,26 @@ export default function App() {
     setLoading(true);
     try {
       const status = await getAndroidPlayAgeRangeStatus();
+      console.log("🚀 ~ checkAndroidAgeStatus ~ status:", status);
+      console.log("📊 Full Response Details:");
+      console.log("  - userStatus:", status.userStatus);
+      console.log("  - installId:", status.installId);
+      console.log("  - ageLower:", status.ageLower);
+      console.log("  - ageUpper:", status.ageUpper);
+      console.log("  - mostRecentApprovalDate:", status.mostRecentApprovalDate);
+      console.log("  - error:", status.error);
+      console.log("  - errorCode:", status.errorCode);
       setAndroidStatus(status);
     } catch (error) {
-      console.error('Error checking Android age status:', error);
+      console.error('❌ Error checking Android age status:', error);
       setAndroidStatus({
         installId: null,
         userStatus: null,
+        ageLower: null,
+        ageUpper: null,
+        mostRecentApprovalDate: null,
         error: String(error),
+        errorCode: null,
       });
     } finally {
       setLoading(false);
@@ -45,8 +58,8 @@ export default function App() {
   const checkIOSAgeStatus = async () => {
     setLoading(true);
     try {
-      // Define age thresholds: 13, 17, 21
-      const status = await requestIOSDeclaredAgeRange(13, 17, 21);
+      // Define age thresholds: 10, 13, 16
+      const status = await requestIOSDeclaredAgeRange(10, 13, 16);
       setIosStatus(status);
     } catch (error) {
       console.error('Error checking iOS age status:', error);
@@ -55,6 +68,7 @@ export default function App() {
         parentControls: null,
         lowerBound: null,
         upperBound: null,
+        declaration: null,
       });
     } finally {
       setLoading(false);
@@ -80,17 +94,109 @@ export default function App() {
 
           {androidStatus && (
             <View style={styles.statusContainer}>
-              <Text style={styles.statusTitle}>Age Range Status:</Text>
+              <Text style={styles.statusTitle}>Age Signals Result:</Text>
               {androidStatus.error ? (
-                <Text style={styles.error}>Error: {androidStatus.error}</Text>
+                <>
+                  <Text style={styles.error}>❌ Error: {androidStatus.error}</Text>
+                  {androidStatus.errorCode !== null && (
+                    <Text style={styles.error}>
+                      Error Code: {androidStatus.errorCode}
+                    </Text>
+                  )}
+                  <Text style={styles.infoText}>
+                    💡 Make sure you're using a device with Google Play Services
+                  </Text>
+                </>
               ) : (
                 <>
-                  <Text style={styles.statusText}>
-                    Install ID: {androidStatus.installId || 'N/A'}
-                  </Text>
-                  <Text style={styles.statusText}>
-                    User Status: {androidStatus.userStatus || 'UNKNOWN'}
-                  </Text>
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Status:</Text>
+                    <Text style={styles.statusValue}>
+                      {androidStatus.userStatus || 'EMPTY'}
+                    </Text>
+                  </View>
+
+                  {androidStatus.userStatus === 'VERIFIED' && (
+                    <>
+                      <Text style={styles.successText}>
+                        ✓ User is verified 18+
+                      </Text>
+                      <Text style={styles.infoText}>
+                        Age verified by ID, credit card, or facial estimation
+                      </Text>
+                    </>
+                  )}
+
+                  {(androidStatus.userStatus === 'SUPERVISED' ||
+                    androidStatus.userStatus === 'SUPERVISED_APPROVAL_PENDING' ||
+                    androidStatus.userStatus === 'SUPERVISED_APPROVAL_DENIED') && (
+                    <>
+                      <Text style={styles.successText}>
+                        👨‍👩‍👧 Supervised Account (Family Link)
+                      </Text>
+                      
+                      {androidStatus.ageLower !== null && androidStatus.ageUpper !== null && (
+                        <View style={styles.statusRow}>
+                          <Text style={styles.statusLabel}>Age Range:</Text>
+                          <Text style={styles.statusValue}>
+                            {androidStatus.ageLower}-{androidStatus.ageUpper} years
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {androidStatus.installId && (
+                        <View style={styles.statusRow}>
+                          <Text style={styles.statusLabel}>Install ID:</Text>
+                          <Text style={styles.statusValue} numberOfLines={1}>
+                            {androidStatus.installId.substring(0, 20)}...
+                          </Text>
+                        </View>
+                      )}
+                      
+                      {androidStatus.mostRecentApprovalDate && (
+                        <View style={styles.statusRow}>
+                          <Text style={styles.statusLabel}>Last Approval:</Text>
+                          <Text style={styles.statusValue}>
+                            {androidStatus.mostRecentApprovalDate}
+                          </Text>
+                        </View>
+                      )}
+
+                      {androidStatus.userStatus === 'SUPERVISED_APPROVAL_PENDING' && (
+                        <Text style={styles.warning}>
+                          ⏳ Waiting for parent approval
+                        </Text>
+                      )}
+
+                      {androidStatus.userStatus === 'SUPERVISED_APPROVAL_DENIED' && (
+                        <Text style={styles.warning}>
+                          🚫 Parent denied approval
+                        </Text>
+                      )}
+                    </>
+                  )}
+
+                  {androidStatus.userStatus === 'UNKNOWN' && (
+                    <>
+                      <Text style={styles.warning}>
+                        ❓ Age status unknown
+                      </Text>
+                      <Text style={styles.infoText}>
+                        User may need to verify age in Play Store
+                      </Text>
+                    </>
+                  )}
+
+                  {androidStatus.userStatus === '' && (
+                    <>
+                      <Text style={styles.infoText}>
+                        ℹ️ User has not set age status
+                      </Text>
+                      <Text style={styles.infoText}>
+                        Consider showing manual age gate
+                      </Text>
+                    </>
+                  )}
                 </>
               )}
             </View>
@@ -109,24 +215,64 @@ export default function App() {
 
           {iosStatus && (
             <View style={styles.statusContainer}>
-              <Text style={styles.statusTitle}>Age Declaration:</Text>
-              <Text style={styles.statusText}>
-                Status: {iosStatus.status || 'N/A'}
-              </Text>
+              <Text style={styles.statusTitle}>Age Declaration Result:</Text>
+              
+              <View style={styles.statusRow}>
+                <Text style={styles.statusLabel}>Status:</Text>
+                <Text style={styles.statusValue}>
+                  {iosStatus.status || 'N/A'}
+                </Text>
+              </View>
+
               {iosStatus.status === 'sharing' && (
                 <>
-                  <Text style={styles.statusText}>
-                    Age Range: {iosStatus.lowerBound || '?'} -{' '}
-                    {iosStatus.upperBound || '?'}
-                  </Text>
-                  <Text style={styles.statusText}>
-                    Parental Controls: {iosStatus.parentControls || 'None'}
+                  <Text style={styles.successText}>✓ User shared age information</Text>
+                  
+                  <View style={styles.statusRow}>
+                    <Text style={styles.statusLabel}>Age Range:</Text>
+                    <Text style={styles.statusValue}>
+                      {iosStatus.lowerBound || '?'} - {iosStatus.upperBound || '?'} years
+                    </Text>
+                  </View>
+
+                  {iosStatus.declaration && (
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Declared By:</Text>
+                      <Text style={styles.statusValue}>
+                        {iosStatus.declaration.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </Text>
+                    </View>
+                  )}
+
+                  {iosStatus.parentControls && (
+                    <View style={styles.statusRow}>
+                      <Text style={styles.statusLabel}>Parental Controls:</Text>
+                      <Text style={styles.statusValue}>{iosStatus.parentControls}</Text>
+                    </View>
+                  )}
+
+                  <Text style={styles.infoText}>
+                    {iosStatus.declaration === 'parent_guardian_declared' 
+                      ? '👨‍👩‍👧 Age declared by parent/guardian'
+                      : iosStatus.declaration === 'organizer_declared'
+                      ? '👨‍👩‍👧 Age declared by family organizer'
+                      : 'ℹ️ Age declared by user'}
                   </Text>
                 </>
               )}
+
               {iosStatus.status === 'declined' && (
-                <Text style={styles.warning}>User declined to share age</Text>
+                <>
+                  <Text style={styles.warning}>❌ User/parent declined to share age</Text>
+                  <Text style={styles.infoText}>
+                    Consider showing manual age verification or default content
+                  </Text>
+                </>
               )}
+
+              <Text style={styles.infoText}>
+                ⚠️ Requires iOS 26.0+ and com.apple.developer.declared-age-range entitlement
+              </Text>
             </View>
           )}
         </View>
@@ -141,6 +287,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    backgroundColor:'white'
   },
   title: {
     fontSize: 20,
@@ -187,10 +334,42 @@ const styles = StyleSheet.create({
   error: {
     fontSize: 14,
     color: 'red',
+    marginVertical: 5,
   },
   warning: {
     fontSize: 14,
     color: 'orange',
     marginTop: 5,
+  },
+  successText: {
+    fontSize: 14,
+    color: 'green',
+    fontWeight: '600',
+    marginTop: 5,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 4,
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  statusLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  statusValue: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+    textAlign: 'right',
+  },
+  infoText: {
+    color: '#666',
+    fontSize: 12,
+    marginVertical: 2,
+    fontStyle: 'italic',
   },
 });

@@ -31,40 +31,21 @@ class StoreAgeDeclarationModule(reactContext: ReactApplicationContext) :
   }
 
   /**
-   * Retrieves the age range declaration status from Google Play Age Signals API.
+   * Retrieves comprehensive age signals from Google Play Age Signals API (Beta).
    * 
-   * This method queries Google Play Services to determine if the user is above or below
-   * the age threshold set for this application. The status is based on:
-   * - Family Link parental controls
-   * - Google account age information
-   * - Play Store age declarations
+   * This method queries Google Play Services to get detailed age verification information
+   * including age ranges for supervised users and verification status for adults.
    * 
-   * The promise always resolves (never rejects) with a result object containing:
-   * - installId: Unique identifier for this installation (not linked to user)
-   * - userStatus: "OVER_AGE", "UNDER_AGE", or "UNKNOWN"
-   * - error: Error message if operation failed, null otherwise
+   * The API returns different data based on user type:
+   * - VERIFIED users (18+): Only userStatus is set
+   * - SUPERVISED users: userStatus + ageLower + ageUpper + installId + mostRecentApprovalDate
+   * - UNKNOWN users: Only userStatus is set
+   * 
+   * The promise always resolves (never rejects) with all available fields.
    * 
    * @param promise React Native Promise to resolve with the result
    * 
-   * Success case:
-   * {
-   *   "installId": "uuid-string",
-   *   "userStatus": "OVER_AGE" | "UNDER_AGE" | "UNKNOWN",
-   *   "error": null
-   * }
-   * 
-   * Error case:
-   * {
-   *   "installId": null,
-   *   "userStatus": null,
-   *   "error": "error message"
-   * }
-   * 
-   * Common errors:
-   * - AGE_SIGNALS_INIT_ERROR: Google Play Services unavailable or initialization failed
-   * - Network errors: Connection or timeout issues
-   * 
-   * @see <a href="https://developer.android.com/guide/playcore/age-signals">Google Play Age Signals</a>
+   * @see <a href="https://developer.android.com/google/play/age-signals/use-age-signals-api">Play Age Signals API</a>
    */
   override fun getAndroidPlayAgeRangeStatus(promise: Promise) {
     try {
@@ -82,27 +63,96 @@ class StoreAgeDeclarationModule(reactContext: ReactApplicationContext) :
         .addOnSuccessListener { result ->
           // Successfully retrieved age signals
           val response = WritableNativeMap()
-          response.putString("installId", result.installId())
-          response.putString("userStatus", result.userStatus()?.toString() ?: "UNKNOWN")
+          
+          // Install ID (supervised users only)
+          val installId = result.installId()
+          if (installId != null && installId.isNotEmpty()) {
+            response.putString("installId", installId)
+          } else {
+            response.putNull("installId")
+          }
+          
+          // User Status (all users)
+          val userStatus = result.userStatus()
+          if (userStatus != null) {
+            response.putString("userStatus", userStatus.toString())
+          } else {
+            response.putString("userStatus", "")
+          }
+          
+          // Age Lower bound (supervised users only)
+          val ageLower = result.ageLower()
+          if (ageLower != null) {
+            response.putInt("ageLower", ageLower)
+          } else {
+            response.putNull("ageLower")
+          }
+          
+          // Age Upper bound (supervised users only)
+          val ageUpper = result.ageUpper()
+          if (ageUpper != null) {
+            response.putInt("ageUpper", ageUpper)
+          } else {
+            response.putNull("ageUpper")
+          }
+          
+          // Most Recent Approval Date (supervised users with approved changes)
+          val approvalDate = result.mostRecentApprovalDate()
+          if (approvalDate != null) {
+            // Convert Java Date to ISO 8601 date string (YYYY-MM-DD)
+            val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+            response.putString("mostRecentApprovalDate", dateFormat.format(approvalDate))
+          } else {
+            response.putNull("mostRecentApprovalDate")
+          }
+          
+          // No error
           response.putNull("error")
+          response.putNull("errorCode")
+          
           promise.resolve(response)
         }
         .addOnFailureListener { error ->
           // API call failed (network, service unavailable, etc.)
           Log.w(NAME, "Age Signals API call failed", error)
+          
           val response = WritableNativeMap()
           response.putNull("installId")
           response.putNull("userStatus")
-          response.putString("error", error.message ?: "Unknown error occurred")
+          response.putNull("ageLower")
+          response.putNull("ageUpper")
+          response.putNull("mostRecentApprovalDate")
+          
+          // Parse error code if available
+          val errorMessage = error.message ?: "Unknown error occurred"
+          response.putString("error", errorMessage)
+          
+          // Try to extract error code from exception
+          try {
+            if (error is com.google.android.gms.common.api.ApiException) {
+              response.putInt("errorCode", error.statusCode)
+            } else {
+              response.putNull("errorCode")
+            }
+          } catch (e: Exception) {
+            response.putNull("errorCode")
+          }
+          
           promise.resolve(response)
         }
     } catch (e: Exception) {
       // Initialization failed (likely Google Play Services not available)
       Log.e(NAME, "Error initializing Age Signals", e)
+      
       val response = WritableNativeMap()
       response.putNull("installId")
       response.putNull("userStatus")
+      response.putNull("ageLower")
+      response.putNull("ageUpper")
+      response.putNull("mostRecentApprovalDate")
       response.putString("error", "AGE_SIGNALS_INIT_ERROR: ${e.message}")
+      response.putNull("errorCode")
+      
       promise.resolve(response)
     }
   }

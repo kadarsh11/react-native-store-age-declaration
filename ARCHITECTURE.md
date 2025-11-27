@@ -24,15 +24,20 @@
 │  │    react-native-store-age-declaration          │   │
 │  │    (This Library)                              │   │
 │  │                                                 │   │
-│  │  getAndroidPlayAgeRangeStatus()                │   │
+│  │  getAndroidPlayAgeRangeStatus() [Android]      │   │
+│  │  requestIOSDeclaredAgeRange()   [iOS]          │   │
 │  └────────────────┬───────────────────────────────┘   │
 └───────────────────┼──────────────────────────────────┘
                     │
                     │ React Native Bridge
                     │
-┌───────────────────▼──────────────────────────────────┐
-│              Native Android Module                    │
-│              StoreAgeDeclarationModule                │
+         ┌──────────┴───────────┐
+         │                      │
+         ▼                      ▼
+┌────────────────┐    ┌────────────────┐
+│ Native Android │    │  Native iOS    │
+│     Module     │    │    Module      │
+└────────────────┘    └────────────────┘
 │                                                        │
 │  ┌──────────────────────────────────────────────┐   │
 │  │  Kotlin Implementation                        │   │
@@ -410,23 +415,25 @@ React Native App
         └─► Age Signals API
 ```
 
-### iOS (Future)
+### iOS (Current)
 
 ```
 React Native App
     │
     ├─► JavaScript Layer
     │   └─► src/index.tsx
+    │   └─► requestIOSDeclaredAgeRange()
     │
     ├─► Bridge Layer
     │   └─► Turbo Module
+    │   └─► Objective-C++ Bridge (StoreAgeDeclaration.mm)
     │
     ├─► Native Layer
-    │   └─► StoreAgeDeclaration.mm
+    │   ├─► StoreAgeDeclaration.mm (Bridge)
+    │   └─► StoreAgeDeclaration.swift (Implementation)
     │
     └─► iOS APIs
-        ├─► Screen Time API
-        └─► Family Sharing API
+        └─► Declared Age Range API (iOS 18+)
 ```
 
 ---

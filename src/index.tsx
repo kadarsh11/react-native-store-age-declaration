@@ -1,8 +1,11 @@
+
+import { TextInput } from 'react-native';
 import StoreAgeDeclaration from './NativeStoreAgeDeclaration';
 import type {
   PlayAgeRangeStatusResult,
   DeclaredAgeRangeResult,
 } from './NativeStoreAgeDeclaration';
+export * from './useStoreAgeDeclaration';
 
 /**
  * Example multiplication function
@@ -15,47 +18,98 @@ export function multiply(a: number, b: number): number {
 }
 
 /**
- * Retrieves the age range declaration status from Google Play's Age Signals API.
+ * Retrieves comprehensive age signals from Google Play Age Signals API (Beta).
  * 
- * This function queries Google Play Services to determine if the user is above or below
- * the age threshold configured for your application. It uses information from:
- * - Family Link accounts (parent-managed devices)
- * - Google account age data
- * - Play Store age declarations
+ * This function queries Google Play Services to get detailed age verification information.
+ * The API returns different data based on user type:
  * 
- * @platform Android - Returns results on Android devices with Google Play Services
- * @platform iOS - Not yet implemented, will be added in a future version
+ * **VERIFIED Users (18+):**
+ * - Age verified by government ID, credit card, or facial age estimation
+ * - Only userStatus is set to 'VERIFIED'
  * 
- * @returns Promise that resolves with an object containing:
- *   - installId: Unique identifier for this installation (not linked to user identity)
- *   - userStatus: 'OVER_AGE' | 'UNDER_AGE' | 'UNKNOWN' | null
- *   - error: Error message if the operation failed, null otherwise
+ * **SUPERVISED Users (Family Link):**
+ * - Managed Google Account with parental controls
+ * - Returns: userStatus, ageLower, ageUpper, installId, mostRecentApprovalDate
+ * - Default age ranges: 0-12, 13-15, 16-17, 18+
  * 
- * @example Basic usage
+ * **UNKNOWN Users:**
+ * - Not verified or supervised (could be over or under 18)
+ * - User should visit Play Store to resolve status
+ * 
+ * @platform Android - Requires Google Play Services
+ * @platform iOS - Not available, use requestIOSDeclaredAgeRange()
+ * 
+ * @returns Promise that resolves with complete age signals data:
+ *   - installId: Install UUID (supervised users only)
+ *   - userStatus: 'VERIFIED' | 'SUPERVISED' | 'SUPERVISED_APPROVAL_PENDING' | 
+ *                 'SUPERVISED_APPROVAL_DENIED' | 'UNKNOWN' | ''
+ *   - ageLower: Lower age bound (supervised users only)
+ *   - ageUpper: Upper age bound (supervised users only)
+ *   - mostRecentApprovalDate: Date of last approved change (supervised users only)
+ *   - error: Error message if failed
+ *   - errorCode: Numeric error code if failed
+ * 
+ * @example Handle verified adult user
  * ```typescript
- * import { getAndroidPlayAgeRangeStatus } from 'react-native-store-age-declaration';
+ * const result = await getAndroidPlayAgeRangeStatus();
  * 
- * async function checkUserAge() {
- *   const result = await getAndroidPlayAgeRangeStatus();
+ * if (result.userStatus === 'VERIFIED') {
+ *   console.log('User is verified 18+');
+ *   showAdultContent();
+ * }
+ * ```
+ * 
+ * @example Handle supervised user with age range
+ * ```typescript
+ * const result = await getAndroidPlayAgeRangeStatus();
+ * 
+ * if (result.userStatus === 'SUPERVISED' && result.ageLower && result.ageUpper) {
+ *   console.log(`Child aged ${result.ageLower}-${result.ageUpper}`);
  *   
- *   if (result.error) {
- *     console.error('Failed to check age:', result.error);
- *     return;
+ *   if (result.ageUpper < 13) {
+ *     showKidsContent();
+ *   } else if (result.ageUpper < 18) {
+ *     showTeenContent();
+ *   } else {
+ *     showAdultContent();
  *   }
- *   
- *   switch (result.userStatus) {
- *     case 'OVER_AGE':
- *       console.log('User is above age threshold');
- *       showAllContent();
+ * }
+ * ```
+ * 
+ * @example Handle approval states
+ * ```typescript
+ * const result = await getAndroidPlayAgeRangeStatus();
+ * 
+ * switch (result.userStatus) {
+ *   case 'SUPERVISED_APPROVAL_PENDING':
+ *     showMessage('Waiting for parent approval');
+ *     break;
+ *   case 'SUPERVISED_APPROVAL_DENIED':
+ *     showMessage('Parent denied access');
+ *     disableFeature();
+ *     break;
+ * }
+ * ```
+ * 
+ * @example Handle errors with retry
+ * ```typescript
+ * const result = await getAndroidPlayAgeRangeStatus();
+ * 
+ * if (result.error) {
+ *   switch (result.errorCode) {
+ *     case -1: // API_NOT_AVAILABLE
+ *     case -6: // PLAY_STORE_VERSION_OUTDATED
+ *       showMessage('Please update Play Store');
  *       break;
- *     case 'UNDER_AGE':
- *       console.log('User is below age threshold');
- *       showKidsContent();
+ *     case -3: // NETWORK_ERROR
+ *       showMessage('Check your connection');
+ *       retryLater();
  *       break;
- *     case 'UNKNOWN':
- *       console.log('Age status unknown, showing safe content');
- *       showGeneralContent();
+ *     case -9: // APP_NOT_OWNED
+ *       showMessage('Install app from Play Store');
  *       break;
+ *     default:
+ *       console.error(result.error);
  *   }
  * }
  * ```
@@ -102,11 +156,17 @@ export function getAndroidPlayAgeRangeStatus(): Promise<PlayAgeRangeStatusResult
 /**
  * Requests age range declaration from iOS Declared Age Range API.
  * 
- * This function prompts the user to share their age range information using
- * iOS 18+'s Declared Age Range API. The user will see a system dialog asking
- * if they want to share their age range with your app.
+ * Uses AgeRangeService to request a person's declared age range with automatic
+ * system UI presentation. For children in Family Sharing groups, parents/guardians
+ * control whether age information is shared.
  * 
- * @platform iOS 18+ - Requires iOS 18 or later
+ * ⚠️ **IMPORTANT REQUIREMENTS:**
+ * - iOS 26.0+, iPadOS 26.0+, macOS 26.0+, or Mac Catalyst 26.0+
+ * - Xcode 17+ with iOS 26 SDK
+ * - Entitlement: com.apple.developer.declared-age-range = true
+ * - Age data is based on user/parent declarations - ensure compliance with your regulations
+ * 
+ * @platform iOS 26.0+ - Requires iOS 26 or later
  * @platform Android - Not available on Android, use getAndroidPlayAgeRangeStatus()
  * 
  * @param firstThresholdAge First age threshold (e.g., 13)
@@ -114,15 +174,19 @@ export function getAndroidPlayAgeRangeStatus(): Promise<PlayAgeRangeStatusResult
  * @param thirdThresholdAge Third age threshold (e.g., 21)
  * 
  * @returns Promise that resolves with an object containing:
- *   - status: 'sharing' | 'declined' | specific age range
- *   - parentControls: Active parental control status
- *   - lowerBound: Lower bound of age range (if shared)
- *   - upperBound: Upper bound of age range (if shared)
+ *   - status: 'sharing' | 'declined'
+ *   - declaration: 'user_declared' | 'parent_guardian_declared' | 'organizer_declared' | null
+ *   - parentControls: 'restricted' | null (set if parent/organizer declared)
+ *   - lowerBound: Lower bound of age range (if status is 'sharing')
+ *   - upperBound: Upper bound of age range (if status is 'sharing')
  * 
- * @throws Error if iOS version is below 18.0
- * @throws Error if unable to present UI
+ * @throws {IOS_VERSION_ERROR} If iOS version is below 26.0
+ * @throws {SDK_NOT_AVAILABLE} If built without iOS 26 SDK
+ * @throws {AGE_RANGE_ERROR} If request fails or user cancels
  * 
- * @example Basic usage
+ * @see https://developer.apple.com/documentation/declaredagerange
+ * 
+ * @example Basic usage with declaration type
  * ```typescript
  * import { requestIOSDeclaredAgeRange } from 'react-native-store-age-declaration';
  * 
@@ -132,18 +196,25 @@ export function getAndroidPlayAgeRangeStatus(): Promise<PlayAgeRangeStatusResult
  *     const result = await requestIOSDeclaredAgeRange(13, 17, 21);
  *     
  *     if (result.status === 'sharing') {
- *       console.log('User is sharing age information');
  *       console.log('Age range:', result.lowerBound, '-', result.upperBound);
+ *       console.log('Declared by:', result.declaration);
  *       console.log('Parental controls:', result.parentControls);
  *       
- *       // Check if user is over 17
+ *       // Handle different declaration types
+ *       if (result.declaration === 'parent_guardian_declared') {
+ *         console.log('Age declared by parent/guardian');
+ *       } else if (result.declaration === 'user_declared') {
+ *         console.log('Age declared by user');
+ *       }
+ *       
+ *       // Filter content by age
  *       if (result.lowerBound && result.lowerBound >= 17) {
  *         showMatureContent();
  *       } else {
  *         showAgeAppropriateContent();
  *       }
  *     } else if (result.status === 'declined') {
- *       console.log('User declined to share age');
+ *       console.log('User/parent declined to share age');
  *       showDefaultContent();
  *     }
  *   } catch (error) {
@@ -216,3 +287,40 @@ export function requestIOSDeclaredAgeRange(
  * @see {@link getAndroidPlayAgeRangeStatus}
  */
 export type { PlayAgeRangeStatusResult, DeclaredAgeRangeResult };
+
+/**
+ * Export constants and helper utilities
+ */
+export {
+  AgeSignalsErrorCode,
+  AgeSignalsUserStatus,
+  IOSAgeRangeStatus,
+  DefaultAgeRanges,
+  shouldRetryError,
+  getErrorMessage,
+  isSupervisedUser,
+  isVerifiedAdult,
+  isUnknownAge,
+  meetsMinimumAge,
+  getAgeCategory,
+  needsParentalApproval,
+} from './constants';
+
+export type {
+  AgeSignalsErrorCodeType,
+  AgeSignalsUserStatusType,
+  IOSAgeRangeStatusType,
+} from './constants';
+
+// Export unified cross-platform hook
+export {
+  useAgeRange,
+  isUserAdult,
+  isSupervised,
+  getAgeRangeString,
+} from './useAgeRange';
+
+export type {
+  UnifiedAgeRangeResult,
+  UseAgeRangeOptions,
+} from './useAgeRange';

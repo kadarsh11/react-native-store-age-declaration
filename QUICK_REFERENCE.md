@@ -8,13 +8,25 @@ npm install react-native-store-age-declaration
 
 ## Basic Usage
 
+### Android (Google Play Age Signals)
+
 ```typescript
 import { getAndroidPlayAgeRangeStatus } from 'react-native-store-age-declaration';
 
 const result = await getAndroidPlayAgeRangeStatus();
 ```
 
-## Response Object
+### iOS (Declared Age Range API)
+
+```typescript
+import { requestIOSDeclaredAgeRange } from 'react-native-store-age-declaration';
+
+const result = await requestIOSDeclaredAgeRange(13, 17, 21);
+```
+
+## Response Objects
+
+### Android Response
 
 ```typescript
 {
@@ -24,16 +36,37 @@ const result = await getAndroidPlayAgeRangeStatus();
 }
 ```
 
-## Common Patterns
-
-### Check if User is Adult
+### iOS Response
 
 ```typescript
-const result = await getAndroidPlayAgeRangeStatus();
-const isAdult = result.userStatus === 'OVER_AGE';
+{
+  status: string | null,       // 'sharing' | 'declined'
+  parentControls: string | null, // Parental control status
+  lowerBound: number | null,   // Age range lower bound
+  upperBound: number | null    // Age range upper bound
+}
 ```
 
-### Filter Content by Age
+## Common Patterns
+
+### Check if User is Adult (Cross-Platform)
+
+```typescript
+import { Platform } from 'react-native';
+
+async function isAdult() {
+  if (Platform.OS === 'android') {
+    const result = await getAndroidPlayAgeRangeStatus();
+    return result.userStatus === 'OVER_AGE';
+  } else if (Platform.OS === 'ios') {
+    const result = await requestIOSDeclaredAgeRange(13, 17, 21);
+    return result.status === 'sharing' && result.lowerBound >= 18;
+  }
+  return false;
+}
+```
+
+### Filter Content by Age (Android)
 
 ```typescript
 const result = await getAndroidPlayAgeRangeStatus();
@@ -42,6 +75,22 @@ if (result.userStatus === 'OVER_AGE') {
   showAllContent();
 } else {
   showKidsContent();
+}
+```
+
+### Filter Content by Age (iOS)
+
+```typescript
+const result = await requestIOSDeclaredAgeRange(13, 17, 21);
+
+if (result.status === 'sharing') {
+  if (result.lowerBound >= 18) {
+    showAllContent();
+  } else {
+    showKidsContent();
+  }
+} else {
+  showDefaultContent();
 }
 ```
 
@@ -56,7 +105,7 @@ if (result.error) {
 }
 ```
 
-### React Hook
+### React Hook (Cross-Platform)
 
 ```typescript
 function useAgeStatus() {
@@ -64,16 +113,28 @@ function useAgeStatus() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    getAndroidPlayAgeRangeStatus()
-      .then(setStatus)
-      .finally(() => setLoading(false));
+    if (Platform.OS === 'android') {
+      getAndroidPlayAgeRangeStatus()
+        .then(setStatus)
+        .finally(() => setLoading(false));
+    } else if (Platform.OS === 'ios') {
+      requestIOSDeclaredAgeRange(13, 17, 21)
+        .then(setStatus)
+        .finally(() => setLoading(false));
+    }
   }, []);
 
-  return { status, loading, isAdult: status?.userStatus === 'OVER_AGE' };
+  const isAdult = Platform.OS === 'android'
+    ? status?.userStatus === 'OVER_AGE'
+    : status?.status === 'sharing' && status?.lowerBound >= 18;
+
+  return { status, loading, isAdult };
 }
 ```
 
-## User Status Values
+## Status Values
+
+### Android (userStatus)
 
 | Value | Meaning |
 |-------|---------|
@@ -82,12 +143,28 @@ function useAgeStatus() {
 | `UNKNOWN` | Age cannot be determined ❓ |
 | `null` | Error occurred ⚠️ |
 
+### iOS (status)
+
+| Value | Meaning |
+|-------|---------|
+| `sharing` | User agreed to share age ✅ |
+| `declined` | User declined to share ❌ |
+
 ## Error Types
+
+### Android
 
 | Error | Cause |
 |-------|-------|
 | `AGE_SIGNALS_INIT_ERROR` | Google Play Services unavailable |
 | Network errors | Connection issues |
+
+### iOS
+
+| Error | Cause |
+|-------|-------|
+| `IOS_VERSION_ERROR` | iOS version below 18.0 |
+| `NO_VIEW_CONTROLLER` | Cannot present UI |
 
 ## Best Practices
 
@@ -105,8 +182,8 @@ function useAgeStatus() {
 
 ## Platform Support
 
-- ✅ Android (API 21+)
-- ⏳ iOS (Coming soon)
+- ✅ Android (API 21+) - Google Play Age Signals
+- ✅ iOS (18.0+) - Declared Age Range API
 
 ## Links
 
@@ -118,29 +195,39 @@ function useAgeStatus() {
 ## One-Liner Examples
 
 ```typescript
-// Simple check
+// Android - Simple check
 const isAdult = (await getAndroidPlayAgeRangeStatus()).userStatus === 'OVER_AGE';
 
-// With error handling
-const canShow = (await getAndroidPlayAgeRangeStatus()).error ? false : true;
+// iOS - Simple check
+const isAdult = (await requestIOSDeclaredAgeRange(13, 17, 21)).lowerBound >= 18;
 
-// Platform check
-const status = Platform.OS === 'android' ? await getAndroidPlayAgeRangeStatus() : null;
+// Cross-platform
+const isAdult = Platform.OS === 'android'
+  ? (await getAndroidPlayAgeRangeStatus()).userStatus === 'OVER_AGE'
+  : (await requestIOSDeclaredAgeRange(13, 17, 21)).lowerBound >= 18;
 ```
 
-## Complete Example
+## Complete Example (Cross-Platform)
 
 ```typescript
 import React, { useEffect, useState } from 'react';
-import { View, Text, Button } from 'react-native';
-import { getAndroidPlayAgeRangeStatus } from 'react-native-store-age-declaration';
+import { View, Text, Button, Platform } from 'react-native';
+import {
+  getAndroidPlayAgeRangeStatus,
+  requestIOSDeclaredAgeRange,
+} from 'react-native-store-age-declaration';
 
 export default function App() {
   const [status, setStatus] = useState(null);
 
   const check = async () => {
-    const result = await getAndroidPlayAgeRangeStatus();
-    setStatus(result);
+    if (Platform.OS === 'android') {
+      const result = await getAndroidPlayAgeRangeStatus();
+      setStatus(result);
+    } else if (Platform.OS === 'ios') {
+      const result = await requestIOSDeclaredAgeRange(13, 17, 21);
+      setStatus(result);
+    }
   };
 
   useEffect(() => { check(); }, []);
@@ -159,6 +246,8 @@ export default function App() {
 
 ## Troubleshooting
 
+### Android
+
 **Problem:** Always returns `UNKNOWN`  
 **Solution:** User may not have Family Link. Show safe content by default.
 
@@ -167,6 +256,17 @@ export default function App() {
 
 **Problem:** Slow response  
 **Solution:** Implement timeout and caching.
+
+### iOS
+
+**Problem:** `IOS_VERSION_ERROR`  
+**Solution:** Check iOS version before calling. Requires iOS 18+.
+
+**Problem:** User always declines  
+**Solution:** Explain why age verification is needed in your UI.
+
+**Problem:** Cannot test on simulator  
+**Solution:** Use physical device with iOS 18+ for full testing.
 
 ---
 
