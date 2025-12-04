@@ -1,6 +1,6 @@
 {
   "name": "react-native-store-age-declaration",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "unified API for age-appropriate experiences across platforms",
   "main": "./lib/module/index.js",
   "types": "./lib/typescript/src/index.d.ts",
