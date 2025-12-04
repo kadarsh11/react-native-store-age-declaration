@@ -1,10 +1,9 @@
 
-import { TextInput } from 'react-native';
-import StoreAgeDeclaration from './NativeStoreAgeDeclaration';
 import type {
-  PlayAgeRangeStatusResult,
   DeclaredAgeRangeResult,
+  PlayAgeRangeStatusResult,
 } from './NativeStoreAgeDeclaration';
+import StoreAgeDeclaration from './NativeStoreAgeDeclaration';
 export * from './useStoreAgeDeclaration';
 
 /**
@@ -286,41 +285,28 @@ export function requestIOSDeclaredAgeRange(
  * Result object returned by getAndroidPlayAgeRangeStatus()
  * @see {@link getAndroidPlayAgeRangeStatus}
  */
-export type { PlayAgeRangeStatusResult, DeclaredAgeRangeResult };
+export type { DeclaredAgeRangeResult, PlayAgeRangeStatusResult };
 
 /**
  * Export constants and helper utilities
  */
-export {
-  AgeSignalsErrorCode,
-  AgeSignalsUserStatus,
-  IOSAgeRangeStatus,
-  DefaultAgeRanges,
-  shouldRetryError,
-  getErrorMessage,
-  isSupervisedUser,
-  isVerifiedAdult,
-  isUnknownAge,
-  meetsMinimumAge,
-  getAgeCategory,
-  needsParentalApproval,
-} from './constants';
+  export {
+    AgeSignalsErrorCode,
+    AgeSignalsUserStatus, DefaultAgeRanges, getAgeCategory, getErrorMessage, IOSAgeRangeStatus, isSupervisedUser, isUnknownAge, isVerifiedAdult, meetsMinimumAge, needsParentalApproval, shouldRetryError
+  } from './constants';
 
 export type {
   AgeSignalsErrorCodeType,
   AgeSignalsUserStatusType,
-  IOSAgeRangeStatusType,
+  IOSAgeRangeStatusType
 } from './constants';
 
 // Export unified cross-platform hook
 export {
-  useAgeRange,
-  isUserAdult,
-  isSupervised,
-  getAgeRangeString,
+  getAgeRangeString, isSupervised, isUserAdult, useAgeRange
 } from './useAgeRange';
 
 export type {
   UnifiedAgeRangeResult,
-  UseAgeRangeOptions,
+  UseAgeRangeOptions
 } from './useAgeRange';
